@@ -1,0 +1,4 @@
+set(SCI_PNG_INCLUDE "@SCI_LIBPNG_INCLUDE@")
+	 
+# These are IMPORTED targets created by FooBarTargets.cmake
+set(SCI_PNG_LIBRARY @SCI_LIBPNG_LIBRARY@)

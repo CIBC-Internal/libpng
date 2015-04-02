@@ -20,9 +20,21 @@ set(PNGLIB_RELEASE 16)
 set(PNGLIB_NAME libpng${PNGLIB_MAJOR}${PNGLIB_MINOR})
 set(PNGLIB_VERSION ${PNGLIB_MAJOR}.${PNGLIB_MINOR}.${PNGLIB_RELEASE})
 
-# needed packages
-find_package(ZLIB REQUIRED)
-include_directories(${ZLIB_INCLUDE_DIR})
+
+###########################################
+# Include the ZLib library
+
+option(SYSTEM_ZLIB "Use system zlib." OFF)
+mark_as_advanced(SYSTEM_ZLIB)
+
+if(SYSTEM_ZLIB)
+  # needed packages
+  find_package(ZLIB REQUIRED)
+  include_directories(${ZLIB_INCLUDE_DIR})
+else()
+  set(ZLIB_LIBRARY ${SCI_ZLIB_LIBRARY})
+  set(ZLIB_INCLUDE ${SCI_ZLIB_INCLUDE})
+endif()
 
 if(NOT WIN32)
   find_library(M_LIBRARY
@@ -39,16 +51,18 @@ else()
 endif()
 
 # COMMAND LINE OPTIONS
-if(DEFINED PNG_SHARED)
-  option(PNG_SHARED "Build shared lib" ${PNG_SHARED})
-else()
-  option(PNG_SHARED "Build shared lib" ON)
-endif()
-if(DEFINED PNG_STATIC)
-  option(PNG_STATIC "Build static lib" ${PNG_STATIC})
-else()
-  option(PNG_STATIC "Build static lib" ON)
-endif()
+#if(DEFINED PNG_SHARED)
+#  option(PNG_SHARED "Build shared lib" ${PNG_SHARED})
+#else()
+#  option(PNG_SHARED "Build shared lib" ON)
+#endif()
+#if(DEFINED PNG_STATIC)
+#  option(PNG_STATIC "Build static lib" ${PNG_STATIC})
+#else()
+#  option(PNG_STATIC "Build static lib" ON)
+#endif()
+
+set(PNG_STATIC ON)
 
 option(PNG_TESTS  "Build libpng tests" YES)
 
@@ -69,6 +83,13 @@ set(CMAKE_DEBUG_POSTFIX "d")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/pnglibconf.h.prebuilt
                ${CMAKE_CURRENT_BINARY_DIR}/pnglibconf.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+###########################################
+# Set variables to link it back to the rest
+# of the project
+
+SET(SCI_PNG_LIBRARY ${PNGLIB_NAME} CACHE INTERNAL "PNG library name." FORCE)
+SET(SCI_PNG_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR} CACHE INTERNAL "PNG include directories." FORCE)
 
 # OUR SOURCES
 set(libpng_public_hdrs
@@ -118,7 +139,7 @@ if(PNG_DEBUG)
 endif()
 
 # NOW BUILD OUR TARGET
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${ZLIB_INCLUDE_DIR})
+include_directories(${SCI_PNG_INCLUDE} ${ZLIB_INCLUDE_DIR})
 
 unset(PNG_LIB_TARGETS)
 
@@ -135,14 +156,14 @@ endif()
 
 if(PNG_STATIC)
 # does not work without changing name
-  set(PNG_LIB_NAME_STATIC ${PNG_LIB_NAME}_static)
-  add_library(${PNG_LIB_NAME_STATIC} STATIC ${libpng_sources})
-  list(APPEND PNG_LIB_TARGETS ${PNG_LIB_NAME_STATIC})
+  #set(PNG_LIB_NAME_STATIC ${PNG_LIB_NAME}_static)
+  add_library(${SCI_PNG_LIBRARY} STATIC ${libpng_sources})
+  list(APPEND PNG_LIB_TARGETS ${SCI_PNG_LIBRARY})
   if(MSVC)
     # msvc does not append 'lib' - do it here to have consistent name
-    set_target_properties(${PNG_LIB_NAME_STATIC} PROPERTIES PREFIX "lib")
+    set_target_properties(${SCI_PNG_LIBRARY} PROPERTIES PREFIX "lib")
   endif()
-  target_link_libraries(${PNG_LIB_NAME_STATIC} ${ZLIB_LIBRARY} ${M_LIBRARY})
+  target_link_libraries(${SCI_PNG_LIBRARY} ${ZLIB_LIBRARY} ${M_LIBRARY})
 endif()
 
 if(NOT PNG_LIB_TARGETS)
@@ -263,7 +284,7 @@ if(PNG_STATIC)
   # libs.  We are able to change OUTPUT_NAME to remove the _static
   # for all other platforms.
   if(NOT MSVC)
-    set_target_properties(${PNG_LIB_NAME_STATIC} PROPERTIES
+    set_target_properties(${SCI_PNG_LIBRARY} PROPERTIES
       OUTPUT_NAME ${PNG_LIB_NAME}
       CLEAN_DIRECT_OUTPUT 1)
   endif()
@@ -305,7 +326,7 @@ if(NOT SKIP_INSTALL_LIBRARIES AND NOT SKIP_INSTALL_ALL )
 
   if(PNG_STATIC)
     if(NOT WIN32 OR CYGWIN OR MINGW)
-      get_target_property(BUILD_TARGET_LOCATION ${PNG_LIB_NAME_STATIC} LOCATION_${CMAKE_BUILD_TYPE})
+      get_target_property(BUILD_TARGET_LOCATION ${SCI_PNG_LIBRARY} LOCATION_${CMAKE_BUILD_TYPE})
       CREATE_SYMLINK(${BUILD_TARGET_LOCATION} libpng${CMAKE_STATIC_LIBRARY_SUFFIX})
       install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libpng${CMAKE_STATIC_LIBRARY_SUFFIX}
          DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -363,3 +384,5 @@ endif()
 # pexports libpng.dll > libpng.def
 # lib /def:libpng.def /machine:x86
 
+configure_file(LibPNGConfig.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/LibPNGConfig.cmake" @ONLY)
+export(TARGETS ${SCI_PNG_LIBRARY} FILE LibPNGExports.cmake)
