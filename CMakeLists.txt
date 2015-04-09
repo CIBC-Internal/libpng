@@ -82,14 +82,14 @@ set(CMAKE_DEBUG_POSTFIX "d")
 # pnglibconf.h in the build directory.)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/pnglibconf.h.prebuilt
                ${CMAKE_CURRENT_BINARY_DIR}/pnglibconf.h)
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+#include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 ###########################################
 # Set variables to link it back to the rest
 # of the project
 
 SET(SCI_PNG_LIBRARY ${PNGLIB_NAME} CACHE INTERNAL "PNG library name." FORCE)
-SET(SCI_PNG_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR} CACHE INTERNAL "PNG include directories." FORCE)
+SET(SCI_PNG_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR};${CMAKE_CURRENT_BINARY_DIR}" CACHE INTERNAL "PNG include directories." FORCE)
 
 # OUR SOURCES
 set(libpng_public_hdrs
