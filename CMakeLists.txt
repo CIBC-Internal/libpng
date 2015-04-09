@@ -6,8 +6,13 @@
 # For conditions of distribution and use, see the disclaimer
 # and license in png.h
 
-cmake_minimum_required(VERSION 2.4.4)
+cmake_minimum_required(VERSION 2.8)
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true)
+
+if(COMMAND cmake_policy)
+  # Library paths (/path/to/libmy.so not translated to -L/path/to -lmy)
+  CMAKE_POLICY(SET CMP0003 NEW)
+endif()
 
 set(CMAKE_CONFIGURATION_TYPES "Release;Debug;MinSizeRel;RelWithDebInfo")
 
@@ -17,21 +22,26 @@ enable_testing()
 set(PNGLIB_MAJOR 1)
 set(PNGLIB_MINOR 6)
 set(PNGLIB_RELEASE 16)
-set(PNGLIB_NAME libpng${PNGLIB_MAJOR}${PNGLIB_MINOR})
+set(PNGLIB_NAME png${PNGLIB_MAJOR}${PNGLIB_MINOR})
 set(PNGLIB_VERSION ${PNGLIB_MAJOR}.${PNGLIB_MINOR}.${PNGLIB_RELEASE})
 
 
 ###########################################
 # Include the ZLib library
 
-option(SYSTEM_ZLIB "Use system zlib." OFF)
-mark_as_advanced(SYSTEM_ZLIB)
+set(SYSTEM_ZLIB OFF CACHE INTERNAL "Use system zlib."  FORCE)
 
 if(SYSTEM_ZLIB)
   # needed packages
   find_package(ZLIB REQUIRED)
   include_directories(${ZLIB_INCLUDE_DIR})
 else()
+  if(Zlib_DIR)
+    find_package(Zlib CONFIGS ZlibConfig.cmake HINTS ${Zlib_DIR} NO_SYSTEM_ENVIRONMENT_PATH)
+    include(${ZLIB_USE_FILE})
+  else()
+    message(FATAL_ERROR "zlib library is required to compile libpng.")
+  endif()
   set(ZLIB_LIBRARY ${SCI_ZLIB_LIBRARY})
   set(ZLIB_INCLUDE ${SCI_ZLIB_INCLUDE})
 endif()
@@ -71,10 +81,10 @@ option(PNG_DEBUG         "Build with debug output" NO)
 option(PNGARG            "Disable ANSI-C prototypes" NO)
 
 # SET LIBNAME
-set(PNG_LIB_NAME png${PNGLIB_MAJOR}${PNGLIB_MINOR})
+#set(PNG_LIB_NAME png${PNGLIB_MAJOR}${PNGLIB_MINOR})
 
 # to distinguish between debug and release lib
-set(CMAKE_DEBUG_POSTFIX "d")
+#set(CMAKE_DEBUG_POSTFIX "d")
 
 # Use the prebuilt pnglibconf.h file from the scripts folder
 # TODO: fix this by building with awk; without this no cmake build can be
@@ -143,28 +153,28 @@ include_directories(${SCI_PNG_INCLUDE} ${ZLIB_INCLUDE_DIR})
 
 unset(PNG_LIB_TARGETS)
 
-if(PNG_SHARED)
-  add_library(${PNG_LIB_NAME} SHARED ${libpng_sources})
-  set(PNG_LIB_TARGETS ${PNG_LIB_NAME})
-  if(MSVC)
-    # msvc does not append 'lib' - do it here to have consistent name
-    set_target_properties(${PNG_LIB_NAME} PROPERTIES PREFIX "lib")
-    set_target_properties(${PNG_LIB_NAME} PROPERTIES IMPORT_PREFIX "lib")
-  endif()
-  target_link_libraries(${PNG_LIB_NAME} ${ZLIB_LIBRARY} ${M_LIBRARY})
-endif()
+#if(PNG_SHARED)
+#  add_library(${PNG_LIB_NAME} SHARED ${libpng_sources})
+#  set(PNG_LIB_TARGETS ${PNG_LIB_NAME})
+#  if(MSVC)
+#    # msvc does not append 'lib' - do it here to have consistent name
+#    set_target_properties(${PNG_LIB_NAME} PROPERTIES PREFIX "lib")
+#    set_target_properties(${PNG_LIB_NAME} PROPERTIES IMPORT_PREFIX "lib")
+#  endif()
+#  target_link_libraries(${PNG_LIB_NAME} ${ZLIB_LIBRARY} ${M_LIBRARY})
+#endif()
 
-if(PNG_STATIC)
+#if(PNG_STATIC)
 # does not work without changing name
   #set(PNG_LIB_NAME_STATIC ${PNG_LIB_NAME}_static)
   add_library(${SCI_PNG_LIBRARY} STATIC ${libpng_sources})
   list(APPEND PNG_LIB_TARGETS ${SCI_PNG_LIBRARY})
-  if(MSVC)
-    # msvc does not append 'lib' - do it here to have consistent name
-    set_target_properties(${SCI_PNG_LIBRARY} PROPERTIES PREFIX "lib")
-  endif()
+#  if(MSVC)
+#    # msvc does not append 'lib' - do it here to have consistent name
+#    set_target_properties(${SCI_PNG_LIBRARY} PROPERTIES PREFIX "lib")
+#  endif()
   target_link_libraries(${SCI_PNG_LIBRARY} ${ZLIB_LIBRARY} ${M_LIBRARY})
-endif()
+#endif()
 
 if(NOT PNG_LIB_TARGETS)
   message(SEND_ERROR
@@ -172,54 +182,54 @@ if(NOT PNG_LIB_TARGETS)
     "Please enable at least one of the following options: PNG_STATIC, PNG_SHARED")
 endif()
 
-if(PNG_SHARED AND WIN32)
-  set_target_properties(${PNG_LIB_NAME} PROPERTIES DEFINE_SYMBOL PNG_BUILD_DLL)
-endif()
+#if(PNG_SHARED AND WIN32)
+#  set_target_properties(${PNG_LIB_NAME} PROPERTIES DEFINE_SYMBOL PNG_BUILD_DLL)
+#endif()
 
-if(PNG_TESTS AND PNG_SHARED)
-  # does not work with msvc due to png_lib_ver issue
-  add_executable(pngtest ${pngtest_sources})
-  target_link_libraries(pngtest ${PNG_LIB_NAME})
-  add_test(pngtest ./pngtest ${CMAKE_CURRENT_SOURCE_DIR}/pngtest.png)
-  #
-  add_executable(pngvalid ${pngvalid_sources})
-  target_link_libraries(pngvalid ${PNG_LIB_NAME})
-  add_test(pngvalid ./pngvalid)
-  add_executable(pngstest ${pngstest_sources})
-  target_link_libraries(pngstest ${PNG_LIB_NAME})
-  add_test(pngstest ./pngstest
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn0g01.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn0g02.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn0g04.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn0g08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn0g16.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn2c08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn2c16.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn3p01.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn3p02.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn3p04.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn3p08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn4a08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn4a16.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn6a08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn6a16.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbbn0g01.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbbn0g02.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbbn0g04.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbbn2c16.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbbn3p08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbgn2c16.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbgn3p08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbrn2c08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbwn0g16.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbwn3p08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbyn3p08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftp0n0g08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftp0n2c08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftp0n3p08.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftp1n3p08.png
-  )
-endif()
+#if(PNG_TESTS AND PNG_SHARED)
+#  # does not work with msvc due to png_lib_ver issue
+#  add_executable(pngtest ${pngtest_sources})
+#  target_link_libraries(pngtest ${PNG_LIB_NAME})
+#  add_test(pngtest ./pngtest ${CMAKE_CURRENT_SOURCE_DIR}/pngtest.png)
+#  #
+#  add_executable(pngvalid ${pngvalid_sources})
+#  target_link_libraries(pngvalid ${PNG_LIB_NAME})
+#  add_test(pngvalid ./pngvalid)
+#  add_executable(pngstest ${pngstest_sources})
+#  target_link_libraries(pngstest ${PNG_LIB_NAME})
+#  add_test(pngstest ./pngstest
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn0g01.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn0g02.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn0g04.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn0g08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn0g16.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn2c08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn2c16.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn3p01.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn3p02.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn3p04.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn3p08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn4a08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn4a16.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn6a08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/basn6a16.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbbn0g01.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbbn0g02.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbbn0g04.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbbn2c16.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbbn3p08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbgn2c16.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbgn3p08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbrn2c08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbwn0g16.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbwn3p08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftbyn3p08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftp0n0g08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftp0n2c08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftp0n3p08.png
+#    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/pngsuite/ftp1n3p08.png
+#  )
+#endif()
 
 # Ensure the CMAKE_LIBRARY_OUTPUT_DIRECTORY is set
 IF(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
@@ -272,23 +282,23 @@ if(NOT WIN32 OR CYGWIN OR MINGW)
 endif(NOT WIN32 OR CYGWIN OR MINGW)
 
 # SET UP LINKS
-if(PNG_SHARED)
-  set_target_properties(${PNG_LIB_NAME} PROPERTIES
+#if(PNG_SHARED)
+#  set_target_properties(${PNG_LIB_NAME} PROPERTIES
 #   VERSION 16.${PNGLIB_RELEASE}.1.6.16
-    VERSION 16.${PNGLIB_RELEASE}.0
-    SOVERSION 16
-    CLEAN_DIRECT_OUTPUT 1)
-endif()
-if(PNG_STATIC)
-  # MSVC doesn't use a different file extension for shared vs. static
-  # libs.  We are able to change OUTPUT_NAME to remove the _static
-  # for all other platforms.
-  if(NOT MSVC)
-    set_target_properties(${SCI_PNG_LIBRARY} PROPERTIES
-      OUTPUT_NAME ${PNG_LIB_NAME}
-      CLEAN_DIRECT_OUTPUT 1)
-  endif()
-endif()
+#    VERSION 16.${PNGLIB_RELEASE}.0
+#    SOVERSION 16
+#    CLEAN_DIRECT_OUTPUT 1)
+#endif()
+#if(PNG_STATIC)
+#  # MSVC doesn't use a different file extension for shared vs. static
+#  # libs.  We are able to change OUTPUT_NAME to remove the _static
+#  # for all other platforms.
+#  if(NOT MSVC)
+#    set_target_properties(${SCI_PNG_LIBRARY} PROPERTIES
+#      OUTPUT_NAME ${PNG_LIB_NAME}
+#      CLEAN_DIRECT_OUTPUT 1)
+#  endif()
+#endif()
 
 # If CMake > 2.4.x, we set a variable used below to export
 # targets to an export file.
