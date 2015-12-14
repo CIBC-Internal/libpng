@@ -14,7 +14,7 @@ if(COMMAND cmake_policy)
   CMAKE_POLICY(SET CMP0003 NEW)
 endif()
 
-set(CMAKE_CONFIGURATION_TYPES "Release;Debug;MinSizeRel;RelWithDebInfo")
+#set(CMAKE_CONFIGURATION_TYPES "Release;Debug;MinSizeRel;RelWithDebInfo")
 
 project(libpng C)
 enable_testing()
