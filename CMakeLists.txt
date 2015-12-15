@@ -14,6 +14,7 @@ if(COMMAND cmake_policy)
   CMAKE_POLICY(SET CMP0003 NEW)
 endif()
 
+# SCI fix: do not hardcode configuration types
 #set(CMAKE_CONFIGURATION_TYPES "Release;Debug;MinSizeRel;RelWithDebInfo")
 
 project(libpng C)
